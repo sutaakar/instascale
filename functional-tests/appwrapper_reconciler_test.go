@@ -43,8 +43,8 @@ func startEnvTest(t *testing.T) *envtest.Environment {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "config", "crd", "bases"),
-			filepath.Join(build.Default.GOPATH, "pkg", "mod", "github.com", "project-codeflare", "multi-cluster-app-dispatcher@v1.38.1", "config", "crd", "bases"),
-			filepath.Join(build.Default.GOPATH, "pkg", "mod", "github.com", "openshift", "api@v0.0.0-20220411210816-c3bb724c282a", "machine", "v1beta1"),
+			filepath.Join(build.Default.GOROOT, "pkg", "mod", "github.com", "project-codeflare", "multi-cluster-app-dispatcher@v1.38.1", "config", "crd", "bases"),
+			filepath.Join(build.Default.GOROOT, "pkg", "mod", "github.com", "openshift", "api@v0.0.0-20220411210816-c3bb724c282a", "machine", "v1beta1"),
 		},
 	}
 	cfg, err = testEnv.Start()
@@ -104,6 +104,7 @@ func instascaleAppwrapper(namespace string) *mcadv1beta1.AppWrapper {
 				// "orderedinstance": "g4dn.xlarge",
 				"orderedinstance": "test.instance1",
 			},
+			Finalizers: []string{"instascale.codeflare.dev/finalizer"},
 			// Labels: map[string]string{
 			// 	"orderedinstance": "test.instance1_test.instance2",
 			// },
@@ -190,7 +191,22 @@ func TestReconciler(t *testing.T) {
 	// fmt.Println("Appwrapper with given name not found....")
 
 	// create appwrapper resource using mcadClient
-	_, err = mcadClient.WorkloadV1beta1().AppWrappers("default").Create(test.Ctx(), aw, metav1.CreateOptions{})
+	aw, err = mcadClient.WorkloadV1beta1().AppWrappers("default").Create(test.Ctx(), aw, metav1.CreateOptions{})
+	test.Expect(err).ToNot(HaveOccurred())
+
+	aw.Status = mcadv1beta1.AppWrapperStatus{
+		Pending: 1,
+		State:   mcadv1beta1.AppWrapperStateEnqueued,
+		Conditions: []mcadv1beta1.AppWrapperCondition{
+			{
+				Type:    mcadv1beta1.AppWrapperCondBackoff,
+				Status:  apiv1.ConditionTrue,
+				Reason:  "AppWrapperNotRunnable",
+				Message: "Insufficient resources to dispatch AppWrapper.",
+			},
+		},
+	}
+	_, err = mcadClient.WorkloadV1beta1().AppWrappers("default").UpdateStatus(test.Ctx(), aw, metav1.UpdateOptions{})
 	test.Expect(err).ToNot(HaveOccurred())
 
 	fmt.Println("appwrapper created!")
