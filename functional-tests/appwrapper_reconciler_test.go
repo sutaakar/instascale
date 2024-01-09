@@ -198,7 +198,6 @@ func TestReconciler(t *testing.T) {
 
 	machineset, err := machineClient.MachineV1beta1().MachineSets("default").Get(test.Ctx(), "test-instascale", metav1.GetOptions{})
 	test.Expect(err).ToNot(HaveOccurred())
-	fmt.Println(machineset.Spec.Replicas)
 	test.Expect(machineset.Spec.Replicas).To(gstruct.PointTo(Equal(int32(1))))
 
 	// assert that AppWrapper goes to "Running" state
